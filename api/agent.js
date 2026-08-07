@@ -113,6 +113,9 @@ async function callGemini(contents, systemInstruction) {
     }
   );
   const data = await r.json();
-  if (!r.ok) throw new Error(JSON.stringify(data));
+  if (!r.ok) {
+    console.error('GEMINI ERROR:', JSON.stringify(data));
+    throw new Error(data?.error?.message || 'Error desconocido de Gemini');
+  }
   return data;
 }
