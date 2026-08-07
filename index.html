@@ -421,20 +421,20 @@
   <section class="detail-section divider">
     <div class="wrap">
       <div class="detail-head">
-        <h2>Así es la web de reservas de tu negocio</h2>
-        <p>Sencilla a propósito: para que tu cliente reserve en segundos y tú recibas la cita sin complicarte.</p>
+        <h2>Prueba tu agente de reservas</h2>
+        <p>Esto es exactamente lo que verá tu cliente en tu web de reservas.</p>
       </div>
-      <div class="glass-card" style="cursor:default; max-width:560px;">
-        <div class="mono" style="font-size:11.5px; color:var(--muted); margin-bottom:18px; display:flex; justify-content:space-between;">
+      <div class="glass-card" style="cursor:default; max-width:560px; display:flex; flex-direction:column;">
+        <div class="mono" style="font-size:11.5px; color:var(--muted); margin-bottom:14px; display:flex; justify-content:space-between;">
           <span>reservas.tunegocio.com</span><span style="color:var(--cyan);">● agente activo</span>
         </div>
-        <h3 style="font-size:19px; margin-bottom:6px;">Reserva tu cita</h3>
-        <p style="font-size:13.5px; color:var(--muted); margin-bottom:20px;">Peluquería Sol — elige servicio y hora</p>
-        <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
-          <div style="background:rgba(255,255,255,0.04); border:1px solid var(--line-soft); border-radius:10px; padding:12px 16px; font-size:13.5px; display:flex; justify-content:space-between;"><span>Corte + barba</span><span class="mono" style="color:var(--cyan);">Jue 12:30</span></div>
-          <div style="background:rgba(255,255,255,0.04); border:1px solid var(--line-soft); border-radius:10px; padding:12px 16px; font-size:13.5px; display:flex; justify-content:space-between;"><span>Solo corte</span><span class="mono" style="color:var(--muted);">Jue 16:00</span></div>
+        <div id="chatWindow" style="display:flex; flex-direction:column; gap:8px; height:280px; overflow-y:auto; margin-bottom:14px; padding-right:4px;">
+          <div style="align-self:flex-start; background:rgba(255,255,255,0.06); border-radius:10px; padding:10px 14px; font-size:13.5px; max-width:85%;">¡Hola! Soy el asistente de reservas. ¿Qué día y qué servicio te viene bien?</div>
         </div>
-        <div class="btn-primary" style="width:100%; justify-content:center; font-size:13.5px; padding:12px;">Confirmar reserva →</div>
+        <form onsubmit="return sendAgentMsg(event)" style="display:flex; gap:8px;">
+          <input id="chatInput" required placeholder="Escribe aquí..." style="flex:1; padding:12px; border-radius:10px; border:1px solid var(--line-soft); background:rgba(255,255,255,0.04); color:var(--text); font-family:'Inter'; font-size:13.5px;">
+          <button type="submit" class="btn-primary" style="padding:12px 18px; font-size:13.5px;">Enviar</button>
+        </form>
       </div>
     </div>
   </section>
@@ -626,6 +626,38 @@
     document.getElementById('view-' + name).classList.add('active');
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === name));
     window.scrollTo({top:0, behavior:'instant'});
+  }
+
+  let chatHistory = [];
+  async function sendAgentMsg(e){
+    e.preventDefault();
+    const input = document.getElementById('chatInput');
+    const win = document.getElementById('chatWindow');
+    const text = input.value.trim();
+    if(!text) return false;
+
+    win.innerHTML += `<div style="align-self:flex-end; background:var(--violet); color:#fff; border-radius:10px; padding:10px 14px; font-size:13.5px; max-width:85%;">${text}</div>`;
+    chatHistory.push({role:'user', content:text});
+    input.value = '';
+    win.scrollTop = win.scrollHeight;
+
+    const typingId = 'typing-' + Date.now();
+    win.innerHTML += `<div id="${typingId}" style="align-self:flex-start; color:var(--muted); font-size:13px;">Escribiendo…</div>`;
+    win.scrollTop = win.scrollHeight;
+
+    try{
+      const r = await fetch('/api/agent', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({messages: chatHistory})});
+      const data = await r.json();
+      document.getElementById(typingId).remove();
+      const reply = data.reply || 'No he podido responder, inténtalo de nuevo.';
+      win.innerHTML += `<div style="align-self:flex-start; background:rgba(255,255,255,0.06); border-radius:10px; padding:10px 14px; font-size:13.5px; max-width:85%;">${reply}</div>`;
+      chatHistory.push({role:'assistant', content:reply});
+    }catch(err){
+      document.getElementById(typingId).remove();
+      win.innerHTML += `<div style="align-self:flex-start; color:var(--pink); font-size:13px;">Error de conexión, inténtalo de nuevo.</div>`;
+    }
+    win.scrollTop = win.scrollHeight;
+    return false;
   }
 
   async function sendContact(e){
